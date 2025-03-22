@@ -18,3 +18,8 @@ networks:
         name: salesbooster_network
         external: true
  ```
+- Lastly, run these commands on both projects:
+ ```
+ docker compose down
+ docker compose up -d
+```
