@@ -10,8 +10,8 @@ Changelist in this version:
 Additional set up:
 
 If we want the containers to be able to see each other, we need to add them to the same network, otherwise calls from the backoffice to symfony-app's endpoints will fail:
-First, create a network: `docker network create salesbooster_network` (Run this once)
-Secondly, add these lines to the compose.yml file of both projects so they know to which network they need to attach:
+- First, create a network: `docker network create salesbooster_network` (Run this once)
+- Secondly, add these lines to the compose.yml file of both projects so they know to which network they need to attach:
 ```
 networks:
     default:
