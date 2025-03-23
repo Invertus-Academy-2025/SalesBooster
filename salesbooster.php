@@ -5,6 +5,8 @@ if (!defined('_PS_VERSION_')) {
 
 class SalesBooster extends Module
 {
+    protected $action_message;
+    protected $resultofsync;
     public function __construct()
     {
         $this->name = 'salesbooster';
@@ -77,6 +79,16 @@ class SalesBooster extends Module
         $startDate = Tools::getValue('start_date', '2025-01-01');
         $endDate = Tools::getValue('end_date', '2026-01-01');
 
+        // Handle Action 1
+        if (Tools::isSubmit('submitActionSendProducts')) {
+            $this->processActionSendProducts();
+        }
+
+        // Handle Action 2
+        if (Tools::isSubmit('submitActionSendOrders')) {
+            $this->processActionSendOrders();
+        }
+
         if (Tools::isSubmit('submitSalesAnalysis')) {
             $data = $this->fetchBackendData($startDate, $endDate);
         } else {
@@ -107,6 +119,8 @@ class SalesBooster extends Module
             'opinion'     => $data['analysis']['opinion'],
             'start_date'  => $startDate,
             'end_date'    => $endDate,
+            'action_message' => $this->action_message,
+            'resultofsync' => $this->resultofsync,
         ]);
 
         return $this->display(__FILE__, 'views/templates/admin/configure.tpl');
