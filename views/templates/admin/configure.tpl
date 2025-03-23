@@ -8,6 +8,30 @@
     </div>
 
     <div class="panel mt-4">
+
+        <div class="panel-body">
+
+            <div class="panel-heading">
+                <h3 class="mb-3">{l s='Data Synchronisation' mod='salesbooster'}</h3>
+                <div class="mt-3">
+                    <p class="mb-0">{$resultofsync}</p>
+                    <textarea class="form-control" rows="12" readonly>{$action_message nofilter}</textarea>
+                </div>
+            </div>
+            <form method="post" action="{$currentUrl|escape:'html':'UTF-8'}">
+                <button type="submit" name="submitActionSendProducts" class="btn btn-success mr-2">
+                    {l s='1. Sync shop items with backend' mod='salesbooster'}
+                </button>
+                <button type="submit" name="submitActionSendOrders" class="btn btn-info">
+                    {l s='2. Sync orders with backend' mod='salesbooster'}
+                </button>
+            </form>
+        </div>
+    </div>
+
+
+
+    <div class="panel mt-4">
         <div class="panel-body">
             <div class="panel-heading">
                 <h3 class="mb-3">{l s='Select Date Range' mod='salesbooster'}</h3>
