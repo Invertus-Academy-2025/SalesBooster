@@ -276,5 +276,46 @@ class SalesBooster extends Module
             $this->action_message = $this->l('Error: ') . $e->getMessage();
         }
     }
+    public static function sendApiRequest($apiEndpoint, $jsonData)
+    {
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $apiEndpoint,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $jsonData,
+            CURLOPT_HTTPHEADER => [
+                'Content-Type: application/json',
+            ],
+            CURLOPT_TIMEOUT => 30,
+        ]);
 
+        $response = curl_exec($ch);
+        $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $curlError = curl_error($ch);
+        curl_close($ch);
+
+        if (!empty($curlError)) {
+            throw new Exception('API connection failed: ' . $curlError);
+        }
+
+        if ($statusCode !== 201) {
+            $errorBody = json_decode($response, true) ?: $response;
+
+            $errorMessage = $errorBody['error'] ?? $errorBody['message'] ?? 'Unknown API error';
+
+            throw new Exception("API Error: $errorMessage ($statusCode)");
+        }
+
+        $responseBody = json_decode($response, true);
+
+        $successMessage = $responseBody['message'] ?? $responseBody['error'] ?? null;
+
+        if (!$successMessage) {
+
+            throw new Exception('Invalid API response format');
+        }
+
+        return $successMessage;
+    }
 }
