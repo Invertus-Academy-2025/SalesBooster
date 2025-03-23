@@ -142,4 +142,48 @@ class SalesBooster extends Module
 
         return $data;
     }
+    private function processActionSendProducts(): void
+    {
+        try {
+            $products = Product::getProducts(
+                $this->context->language->id,
+                0,
+                0,
+                'id_product',
+                'ASC',
+                false,
+                true
+            );
+
+            $productData = array_map(function($product) {
+                return [
+                    'product_id' => (int)$product['id_product'],
+                    'name' => $product['name'],
+                    'price' => $product['price']
+                ];
+            }, $products);
+
+            if (empty($productData)) {
+                $this->action_message = $this->l('No products found');
+                return;
+            }
+
+            // Convert to pretty-printed JSON
+            $json = json_encode($productData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+
+            $info= self::sendApiRequest("http://php:80/api/saveproducts", $json);
+
+            if ($json === false) {
+                throw new Exception('JSON encoding failed: ' . json_last_error_msg());
+            }
+
+            $this->action_message = htmlspecialchars($json, ENT_QUOTES);
+            $this->resultofsync = htmlspecialchars($info, ENT_QUOTES);
+
+        } catch (Exception $e) {
+            $this->action_message = $this->l('Error: ') . $e->getMessage();
+        }
+    }
+
+
 }
