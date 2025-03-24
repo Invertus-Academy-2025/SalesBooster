@@ -61,30 +61,40 @@
             <div class="panel-heading">
                 <h3 class="mb-3">{l s='Product Trends' mod='salesbooster'}</h3>
             </div>
-            <div class="table-responsive">
-                <table class="table table-bordered table-striped">
-                    <thead>
-                    <tr class="bg-primary text-white">
-                        <th scope="col">{l s='Product ID' mod='salesbooster'}</th>
-                        <th scope="col">{l s='Product Name' mod='salesbooster'}</th>
-                        <th scope="col">{l s='Trend Status' mod='salesbooster'}</th>
-                        <th scope="col">{l s='Change (%)' mod='salesbooster'}</th>
-                        <th scope="col">{l s='Key Dates' mod='salesbooster'}</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {foreach from=$products item=product}
-                        <tr>
-                            <td>{$product.product_id}</td>
-                            <td>{$product.product_name}</td>
-                            <td>{$product.trend_status}</td>
-                            <td>{$product.percentage_change}%</td>
-                            <td>{implode(', ', $product.key_dates)}</td>
+            <form method="post" action="{$currentUrl|escape:'html':'UTF-8'}">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-striped">
+                        <thead>
+                        <tr class="bg-primary text-white">
+                            <th scope="col">{l s='Select' mod='salesbooster'}</th>
+                            <th scope="col">{l s='Product ID' mod='salesbooster'}</th>
+                            <th scope="col">{l s='Product Name' mod='salesbooster'}</th>
+                            <th scope="col">{l s='Trend Status' mod='salesbooster'}</th>
+                            <th scope="col">{l s='Change (%)' mod='salesbooster'}</th>
+                            <th scope="col">{l s='Key Dates' mod='salesbooster'}</th>
                         </tr>
-                    {/foreach}
-                    </tbody>
-                </table>
-            </div>
+                        </thead>
+                        <tbody>
+                        {foreach from=$products item=product}
+                            <tr>
+                                <td>
+                                    <input type="checkbox" name="selected_products[]" value="{$product.product_id}"
+                                           {if isset($selectedProducts) && in_array($product.product_id, $selectedProducts)}checked="checked"{/if}>
+                                </td>
+                                <td>{$product.product_id}</td>
+                                <td>{$product.product_name}</td>
+                                <td>{$product.trend_status}</td>
+                                <td>{$product.percentage_change}%</td>
+                                <td>{implode(', ', $product.key_dates)}</td>
+                            </tr>
+                        {/foreach}
+                        </tbody>
+                    </table>
+                </div>
+                <button type="submit" name="submitSelectedProducts" class="btn btn-warning mt-3">
+                    {l s='Promote Selected Products' mod='salesbooster'}
+                </button>
+            </form>
         </div>
     </div>
 

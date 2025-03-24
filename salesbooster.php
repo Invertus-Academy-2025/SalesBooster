@@ -41,6 +41,7 @@ class SalesBooster extends Module
         return (
             parent::install()
             && Configuration::updateValue('MYMODULE_NAME', 'salesbooster')
+            && $this->registerHook('displayCrossSellingShoppingCart')
         );
     }
 
@@ -78,6 +79,18 @@ class SalesBooster extends Module
     {
         $startDate = Tools::getValue('start_date', '2025-01-01');
         $endDate = Tools::getValue('end_date', '2026-01-01');
+
+        if (Tools::isSubmit('submitSelectedProducts')) {
+            $selectedProducts = Tools::getValue('selected_products');
+            if (!empty($selectedProducts)) {
+                Configuration::updateValue('SALESBOOSTER_SELECTED_PRODUCTS', json_encode($selectedProducts));
+            } else {
+                Configuration::deleteByName('SALESBOOSTER_SELECTED_PRODUCTS');
+            }
+        }
+
+        $selectedProductsJson = Configuration::get('SALESBOOSTER_SELECTED_PRODUCTS');
+        $savedProductIds = $selectedProductsJson ? json_decode($selectedProductsJson, true) : [];
 
         // Handle Action 1
         if (Tools::isSubmit('submitActionSendProducts')) {
@@ -121,10 +134,52 @@ class SalesBooster extends Module
             'end_date'    => $endDate,
             'action_message' => $this->action_message,
             'resultofsync' => $this->resultofsync,
+            'selectedProducts' => $savedProductIds,
         ]);
 
         return $this->display(__FILE__, 'views/templates/admin/configure.tpl');
     }
+
+    public function hookDisplayCrossSellingShoppingCart($params)
+    {
+        $selectedProductsJson = Configuration::get('SALESBOOSTER_SELECTED_PRODUCTS');
+        $selectedProductIds = $selectedProductsJson ? json_decode($selectedProductsJson, true) : [];
+
+        if (empty($selectedProductIds)) {
+            return '';
+        }
+
+        $products = [];
+        foreach ($selectedProductIds as $idProduct) {
+            $product = new Product((int)$idProduct, false, $this->context->language->id);
+
+            $cover = Product::getCover($product->id);
+            if ($cover) {
+                $imageUrl = Context::getContext()->link->getImageLink($product->link_rewrite, $cover['id_image'], 'large_default');
+            }
+
+            if (Validate::isLoadedObject($product)) {
+                $products[] = [
+                    'id_product' => $product->id,
+                    'name'       => $product->name,
+                    'price'      => Tools::displayPrice($product->price),
+                    'link'       => $this->context->link->getProductLink($product),
+                    'image'      => $imageUrl
+                ];
+            }
+        }
+
+        if (empty($products)) {
+            return '';
+        }
+
+        $this->context->smarty->assign([
+            'selectedProducts' => $products,
+        ]);
+
+        return $this->display(__FILE__, 'views/templates/hook/focarousel.tpl');
+    }
+
 
     private function fetchBackendData(string $startDate, string $endDate): array
     {
