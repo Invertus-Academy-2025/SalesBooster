@@ -3,7 +3,10 @@
     <div class="panel">
         <div class="panel-heading">
             <h2 class="mb-3">{l s='Sales Analysis' mod='salesbooster'}</h2>
-            <p class="mb-0">{$opinion}</p>
+            <p class="mb-0 text-success">
+                {$opinion}
+                {$modulemessage}
+            </p>
         </div>
     </div>
 
@@ -20,7 +23,7 @@
             </div>
             <form method="post" action="{$currentUrl|escape:'html':'UTF-8'}">
                 <button type="submit" name="submitActionSendProducts" class="btn btn-success mr-2">
-                    {l s='1. Sync shop items with backend' mod='salesbooster'}
+                    {l s='1. Sync products with backend' mod='salesbooster'}
                 </button>
                 <button type="submit" name="submitActionSendOrders" class="btn btn-info">
                     {l s='2. Sync orders with backend' mod='salesbooster'}
@@ -67,6 +70,7 @@
                         <thead>
                         <tr class="bg-primary text-white">
                             <th scope="col">{l s='Select' mod='salesbooster'}</th>
+                            <th scope="col">{l s='Apply Discount %' mod='salesbooster'}</th>
                             <th scope="col">{l s='Product ID' mod='salesbooster'}</th>
                             <th scope="col">{l s='Product Name' mod='salesbooster'}</th>
                             <th scope="col">{l s='Trend Status' mod='salesbooster'}</th>
@@ -80,6 +84,15 @@
                                 <td>
                                     <input type="checkbox" name="selected_products[]" value="{$product.product_id}"
                                            {if isset($selectedProducts) && in_array($product.product_id, $selectedProducts)}checked="checked"{/if}>
+                                </td>
+                                <td>
+                                <input type="number"
+                                       name="discounts[{$product.product_id}]"
+                                       value="{$savedDiscounts.{$product.product_id}|default:'%'}"
+                                       min="0"
+                                       max="100"
+                                       step="1"
+                                       placeholder="%">
                                 </td>
                                 <td>{$product.product_id}</td>
                                 <td>{$product.product_name}</td>
