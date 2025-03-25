@@ -7,6 +7,7 @@ class SalesBooster extends Module
 {
     protected $action_message;
     protected $resultofsync;
+    protected $modulemessage;
     public function __construct()
     {
         $this->name = 'salesbooster';
@@ -41,6 +42,7 @@ class SalesBooster extends Module
         return (
             parent::install()
             && Configuration::updateValue('MYMODULE_NAME', 'salesbooster')
+            && $this->registerHook('displayCrossSellingShoppingCart')
         );
     }
 
@@ -52,24 +54,6 @@ class SalesBooster extends Module
         );
     }
 
-    public function getTabs()
-    {
-        return [
-            [
-                'class_name' => 'AdminDemoSymfonyForm',
-                'visible' => true,
-                'name' => 'Admin symfony form single',
-                'parent_class_name' => 'CONFIGURE',
-            ],
-            [
-                'class_name' => 'AdminDemoSymfonyFormMultipleForms',
-                'visible' => true,
-                'name' => 'Admin symfony form multiple forms',
-                'parent_class_name' => 'CONFIGURE',
-            ],
-        ];
-    }
-
     /**
      * This method handles the module's configuration page
      * @return string The page's HTML content
@@ -78,6 +62,32 @@ class SalesBooster extends Module
     {
         $startDate = Tools::getValue('start_date', '2025-01-01');
         $endDate = Tools::getValue('end_date', '2026-01-01');
+
+        if (Tools::isSubmit('submitSelectedProducts')) {
+            $selectedProducts = Tools::getValue('selected_products');
+            $discounts = Tools::getValue('discounts');
+
+            if (!empty($selectedProducts)) {
+                Configuration::updateValue('SALESBOOSTER_SELECTED_PRODUCTS', json_encode($selectedProducts));
+                Configuration::updateValue('SALESBOOSTER_DISCOUNTS', json_encode($discounts));
+
+                    try {
+                        $this->processProductDiscounts($discounts);
+                    } catch (Exception $e) {
+                        PrestaShopLogger::addLog("Discount processing failed: " . $e->getMessage(), 3);
+                    }
+                $this->modulemessage = "The banner and the discounts were updated";
+            } else {
+                Configuration::deleteByName('SALESBOOSTER_SELECTED_PRODUCTS');
+                Configuration::deleteByName('SALESBOOSTER_DISCOUNTS');
+                $this->modulemessage = "The banner was disabled";
+            }
+        }
+
+        $savedDiscountsJson = Configuration::get('SALESBOOSTER_DISCOUNTS');
+        $savedDiscounts = $savedDiscountsJson ? json_decode($savedDiscountsJson, true) : [];
+        $selectedProductsJson = Configuration::get('SALESBOOSTER_SELECTED_PRODUCTS');
+        $savedProductIds = $selectedProductsJson ? json_decode($selectedProductsJson, true) : [];
 
         // Handle Action 1
         if (Tools::isSubmit('submitActionSendProducts')) {
@@ -121,9 +131,52 @@ class SalesBooster extends Module
             'end_date'    => $endDate,
             'action_message' => $this->action_message,
             'resultofsync' => $this->resultofsync,
+            'selectedProducts' => $savedProductIds,
+            'modulemessage' => $this->modulemessage,
+            'savedDiscounts' => $savedDiscounts
         ]);
 
         return $this->display(__FILE__, 'views/templates/admin/configure.tpl');
+    }
+
+    public function hookDisplayCrossSellingShoppingCart($params)
+    {
+        $selectedProductsJson = Configuration::get('SALESBOOSTER_SELECTED_PRODUCTS');
+        $selectedProductIds = $selectedProductsJson ? json_decode($selectedProductsJson, true) : [];
+
+        if (empty($selectedProductIds)) {
+            return '';
+        }
+
+        $products = [];
+        foreach ($selectedProductIds as $idProduct) {
+            $product = new Product((int)$idProduct, false, $this->context->language->id);
+
+            $cover = Product::getCover($product->id);
+            if ($cover) {
+                $imageUrl = Context::getContext()->link->getImageLink($product->link_rewrite, $cover['id_image'], 'large_default');
+            }
+
+            if (Validate::isLoadedObject($product)) {
+                $products[] = [
+                    'id_product' => $product->id,
+                    'name'       => $product->name,
+                    'price'      => Tools::displayPrice($product->price),
+                    'link'       => $this->context->link->getProductLink($product),
+                    'image'      => $imageUrl
+                ];
+            }
+        }
+
+        if (empty($products)) {
+            return '';
+        }
+
+        $this->context->smarty->assign([
+            'selectedProducts' => $products,
+        ]);
+
+        return $this->display(__FILE__, 'views/templates/hook/focarousel.tpl');
     }
 
     private function fetchBackendData(string $startDate, string $endDate): array
@@ -226,21 +279,6 @@ class SalesBooster extends Module
                 $status = new OrderState($order->current_state, $this->context->language->id);
 
                 foreach ($order->getProducts() as $product) {
-//                    $orderData[] = [
-//                        // Order data
-//                        'order_id' => (int)$order->id,
-//                        'date' => $order->date_add,
-//                        'customer_id' => (int)$order->id_customer,
-//                        'total_paid' => (float)$order->total_paid,
-//                        'payment_method' => $order->payment,
-//                        'order_status' => $status->name,
-//
-//                        // Product data
-//                        'product_id' => (int)$product['product_id'],
-//                        'product_name' => $product['product_name'],
-//                        'quantity' => (int)$product['product_quantity'],
-//                        'unit_price' => (float)$product['unit_price_tax_incl']
-//                    ];
 
                     $orderData[] = [
                         // Order data
@@ -255,14 +293,6 @@ class SalesBooster extends Module
 
             $json = json_encode($orderData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 
-//            $order = [
-//                'order_id' => 2,
-//                'order_date' => '2025-03-10 17:05:39',
-//                'product_id' => 2,
-//                'quantity' => 20
-//            ];
-
-            //$jsonorder = json_encode([$order], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
             $info= self::sendApiRequest("http://php:80/api/saveorders", $json);
 
             if ($json === false) {
@@ -318,4 +348,104 @@ class SalesBooster extends Module
 
         return $successMessage;
     }
+
+    protected function processProductDiscounts(array $discounts)
+    {
+
+        try {
+            foreach ($discounts as $productId => $discountValue) {
+                if($discountValue != '%' || $discountValue != null) {
+                    $this->applyProductDiscount((int)$productId, (int)$discountValue);
+                }
+            }
+            $this->confirmations[] = $this->l('Discounts updated successfully');
+        } catch (Exception $e) {
+            PrestaShopLogger::addLog("Discount error: {$e->getMessage()}", 3);
+            $this->errors[] = $this->l('Error updating discounts');
+        }
+    }
+
+    protected function applyProductDiscount(int $productId, float $discount)
+    {
+        // Validate input
+        if ($discount < 0 || $discount > 100) {
+            throw new Exception("Invalid discount value for product $productId");
+        }
+
+        $product = new Product($productId);
+        if (!Validate::isLoadedObject($product)) {
+            throw new Exception("Product $productId not found");
+        }
+
+        // Create/update specific price
+        $this->updateSpecificPrice(
+            $productId,
+            $discount,
+            $this->context->shop->id,
+            $this->context->currency->id,
+            $this->context->customer->id_default_group
+        );
+    }
+
+    protected function updateSpecificPrice(
+        int $productId,
+        int $discount,
+        int $shopId,
+        int $currencyId,
+        ?int $groupId = null
+    ) {
+        try {
+            $groupId = $groupId ?? 0;
+
+            // 1. Find existing specific price with exact matching criteria
+            $existingPrice = SpecificPrice::getSpecificPrice(
+                $productId,
+                $shopId,
+                $currencyId,
+                0,
+                $groupId,
+                1,
+                0,
+                0,
+                0
+            );
+
+            // 2. Handle discount removal
+            if ($discount <= 0) {
+                if ($existingPrice && isset($existingPrice['id_specific_price'])) {
+                    $specificPrice = new SpecificPrice($existingPrice['id_specific_price']);
+                    if ($specificPrice->delete()) {
+                        PrestaShopLogger::addLog("Deleted specific price for product $productId", 1);
+                    }
+                }
+                return;
+            }
+
+            $specificPrice = $existingPrice ? new SpecificPrice($existingPrice['id_specific_price']) : new SpecificPrice();
+
+            // Set mandatory fields
+            $specificPrice->id_product = $productId;
+            $specificPrice->id_shop = $shopId;
+            $specificPrice->id_currency = $currencyId;
+            $specificPrice->id_group = $groupId;
+            $specificPrice->from_quantity = 1;
+            $specificPrice->price = -1; // default product price
+            $specificPrice->reduction_type = 'percentage';
+            $specificPrice->reduction = $discount / 100;
+            // universal
+            $specificPrice->id_country = 0;
+            $specificPrice->id_customer = 0;
+            $specificPrice->from = '0000-00-00';
+            $specificPrice->to = '0000-00-00';
+
+            if (!$specificPrice->save()) {
+                throw new Exception("Failed to save specific price: " . print_r($specificPrice->getErrors(), true));
+            }
+
+        } catch (Exception $e) {
+            PrestaShopLogger::addLog("Price update error: {$e->getMessage()}", 3);
+            throw $e;
+        }
+    }
+
 }
