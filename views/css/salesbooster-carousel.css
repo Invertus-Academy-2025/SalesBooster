@@ -1,26 +1,16 @@
-/* Example CSS - Adjust as needed */
+
 .crossselling-products-salesbooster .products-carousel-salesbooster .slick-slide {
-    /* Add some spacing between slides if needed */
     margin: 0 10px;
 }
 
-.crossselling-products-salesbooster .products-carousel-salesbooster .slick-prev,
-.crossselling-products-salesbooster .products-carousel-salesbooster .slick-next {
-    /* Example: Style arrows if needed */
-    /* background-color: #ccc; */
-    /* border-radius: 50%; */
-    /* width: 30px; */
-    /* height: 30px; */
-}
 
-/* Ensure product miniatures display correctly within the carousel item */
 .crossselling-products-salesbooster .product-item {
-    display: flex; /* Helps with alignment */
+    display: flex;
     flex-direction: column;
-    height: 100%; /* Ensure items take full height for consistent alignment */
+    height: 100%;
 }
 .crossselling-products-salesbooster .product-item .product-miniature {
-    height: 100%; /* Make miniature fill the container */
-    margin-bottom: 0; /* Remove default bottom margin if it exists */
+    height: 100%;
+    margin-bottom: 0;
 }
 
