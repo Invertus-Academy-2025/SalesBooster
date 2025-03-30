@@ -6,9 +6,9 @@
             </h2>
         {/if}
 
-        <div class="products products-carousel-salesbooster js-salesbooster-carousel row"> {* 'row' class might be helpful depending on theme/CSS framework *}
+        <div class="products products-carousel-salesbooster js-salesbooster-carousel row">
             {foreach from=$salesbooster_products item="product"}
-             <div class="item product-item"> {* Or maybe just <div class="item"> *}
+             <div class="item product-item">
                     {include file='catalog/_partials/miniatures/product.tpl' product=$product}
                 </div>
             {/foreach}
