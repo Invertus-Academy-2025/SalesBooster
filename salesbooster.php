@@ -172,8 +172,12 @@ class SalesBooster extends Module
             return '';
         }
 
+        $savedDiscountsJson = Configuration::get('SALESBOOSTER_DISCOUNTS');
+        $savedDiscounts = $savedDiscountsJson ? json_decode($savedDiscountsJson, true) : [];
+
         $this->context->smarty->assign([
             'selectedProducts' => $products,
+            'savedDiscounts'   => $savedDiscounts
         ]);
 
         return $this->display(__FILE__, 'views/templates/hook/focarousel.tpl');
@@ -383,7 +387,8 @@ class SalesBooster extends Module
             $discount,
             $this->context->shop->id,
             $this->context->currency->id,
-            $this->context->customer->id_default_group
+//            $this->context->customer->id_default_group
+            0
         );
     }
 
@@ -395,7 +400,7 @@ class SalesBooster extends Module
         ?int $groupId = null
     ) {
         try {
-            $groupId = $groupId ?? 0;
+            $groupId = 0;
 
             // 1. Find existing specific price with exact matching criteria
             $existingPrice = SpecificPrice::getSpecificPrice(
