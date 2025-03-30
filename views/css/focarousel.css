@@ -1,0 +1,127 @@
+#salesBoosterCarousel {
+    position: relative;
+    padding-bottom: 30px;
+}
+
+#salesBoosterCarousel .carousel-inner {
+    padding: 15px 0;
+}
+
+#salesBoosterCarousel .product-card {
+    transition: transform 0.3s;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    margin: 0 5px;
+}
+
+#salesBoosterCarousel .product-card:hover {
+    transform: translateY(-5px);
+}
+
+#salesBoosterCarousel .card-img-container {
+    position: relative;
+    padding-top: 10px;
+}
+
+#salesBoosterCarousel .card-img-top {
+    height: 180px;
+    object-fit: contain;
+    padding: 10px;
+}
+
+#salesBoosterCarousel .card-body {
+    padding: 15px;
+}
+
+#salesBoosterCarousel .discount-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: #ff5722;
+    color: white;
+    padding: 5px 10px;
+    border-radius: 3px;
+    font-weight: bold;
+}
+
+#salesBoosterCarousel .price-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#salesBoosterCarousel .price {
+    font-weight: bold;
+    color: #2fb5d2;
+    margin-bottom: 0;
+}
+
+#salesBoosterCarousel .original-price {
+    text-decoration: line-through;
+    color: #7a7a7a;
+    font-size: 0.9em;
+    margin-bottom: 0;
+}
+
+#salesBoosterCarousel .view-product-btn {
+    background-color: #2fb5d2;
+    border-color: #2fb5d2;
+    width: 100%;
+    text-transform: uppercase;
+    font-weight: 600;
+    padding: 8px 15px;
+}
+
+#salesBoosterCarousel .view-product-btn:hover {
+    background-color: #2592a9;
+    border-color: #2592a9;
+}
+
+#salesBoosterCarousel .carousel-control-prev,
+#salesBoosterCarousel .carousel-control-next {
+    width: 40px;
+    height: 40px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 50%;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0.7;
+    margin: 0 10px;
+    position: absolute;
+}
+
+#salesBoosterCarousel .carousel-control-prev {
+    left: 0;
+}
+
+#salesBoosterCarousel .carousel-control-next {
+    right: 0;
+}
+
+#salesBoosterCarousel .carousel-control-prev:hover,
+#salesBoosterCarousel .carousel-control-next:hover {
+    opacity: 1;
+}
+
+#salesBoosterCarousel .carousel-control-prev-icon,
+#salesBoosterCarousel .carousel-control-next-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+}
+
+#salesBoosterCarousel .carousel-indicators {
+    bottom: -25px;
+}
+
+#salesBoosterCarousel .carousel-indicators li {
+    background-color: #ccc;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin: 0 5px;
+}
+
+#salesBoosterCarousel .carousel-indicators li.active {
+    background-color: #2fb5d2;
+}
