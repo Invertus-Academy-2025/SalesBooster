@@ -2,7 +2,11 @@
 if (!defined('_PS_VERSION_')) {
     exit;
 }
-
+use PrestaShop\PrestaShop\Adapter\Image\ImageRetriever;
+use PrestaShop\PrestaShop\Adapter\Product\PriceFormatter;
+use PrestaShop\PrestaShop\Adapter\Product\ProductColorsRetriever;
+use PrestaShop\PrestaShop\Core\Product\ProductListingPresenter;
+use PrestaShop\PrestaShop\Core\Product\ProductPresenter;
 class SalesBooster extends Module
 {
     protected $action_message;
@@ -43,6 +47,7 @@ class SalesBooster extends Module
             parent::install()
             && Configuration::updateValue('MYMODULE_NAME', 'salesbooster')
             && $this->registerHook('displayCrossSellingShoppingCart')
+            && $this->registerHook('actionFrontControllerSetMedia')
         );
     }
 
@@ -54,6 +59,51 @@ class SalesBooster extends Module
         );
     }
 
+    /**
+     * Add the CSS & JavaScript files you need for the carousel
+     */
+    public function hookActionFrontControllerSetMedia()
+    {
+        // Only load assets on the cart page
+        if ($this->context->controller->php_self !== 'cart') {
+            return;
+        }
+
+        $this->context->controller->registerStylesheet(
+            'modules-salesbooster-slick-css', // Unique ID
+            'modules/'.$this->name.'/views/css/slick.css', // Local path
+            ['media' => 'all', 'priority' => 150]
+        );
+
+        $this->context->controller->registerStylesheet(
+            'modules-salesbooster-slick-theme-css', // Unique ID
+            'modules/'.$this->name.'/views/css/slick-theme.css', // Local path
+            ['media' => 'all', 'priority' => 151]
+        );
+
+        // 2. Add Slick JS (Local)
+        $this->context->controller->registerJavascript(
+            'modules-salesbooster-slick-js', // Unique ID
+            'modules/'.$this->name.'/views/js/slick.min.js', // Local path
+            [
+                'position' => 'bottom',
+                'priority' => 150,
+            ]
+        );
+
+
+        $this->context->controller->registerStylesheet(
+            'modules-salesbooster-custom-css',
+            'modules/'.$this->name.'/views/css/salesbooster-carousel.css', // Local path
+            ['media' => 'all', 'priority' => 152] // Load after Slick CSS
+        );
+
+        $this->context->controller->registerJavascript(
+            'modules-salesbooster-custom-js',
+            'modules/'.$this->name.'/views/js/salesbooster-carousel.js', // Local path
+            ['position' => 'bottom', 'priority' => 151] // Load after Slick JS
+        );
+    }
     /**
      * This method handles the module's configuration page
      * @return string The page's HTML content
@@ -141,42 +191,67 @@ class SalesBooster extends Module
 
     public function hookDisplayCrossSellingShoppingCart($params)
     {
+        // 1. Get Product IDs from Configuration
         $selectedProductsJson = Configuration::get('SALESBOOSTER_SELECTED_PRODUCTS');
-        $selectedProductIds = $selectedProductsJson ? json_decode($selectedProductsJson, true) : [];
+        if (empty($selectedProductsJson)) {
+            return ''; // No products configured
+        }
+
+        $selectedProductIds = json_decode($selectedProductsJson, true);
+        if (!is_array($selectedProductIds) || empty($selectedProductIds)) {
+            return '';
+        }
+
+        // Filter out non-numeric IDs just in case
+        $selectedProductIds = array_filter($selectedProductIds, 'is_numeric');
+        $selectedProductIds = array_map('intval', $selectedProductIds);
 
         if (empty($selectedProductIds)) {
-            return '';
+            return ''; // No valid product IDs found
         }
 
-        $products = [];
-        foreach ($selectedProductIds as $idProduct) {
-            $product = new Product((int)$idProduct, false, $this->context->language->id);
+        // 2. Get Product Data (Formatted for the template)
+        $productsForTemplate = [];
+        $presenterFactory = new ProductPresenterFactory($this->context);
+        $presentationSettings = $presenterFactory->getPresentationSettings();
+        $presenter = new ProductPresenter(
+            new ImageRetriever(
+                $this->context->link
+            ),
+            $this->context->link,
+            new PriceFormatter(),
+            new ProductColorsRetriever(),
+            $this->context->getTranslator()
+        );
 
-            $cover = Product::getCover($product->id);
-            if ($cover) {
-                $imageUrl = Context::getContext()->link->getImageLink($product->link_rewrite, $cover['id_image'], 'large_default');
+        $assembler = new ProductAssembler($this->context);
+
+        foreach ($selectedProductIds as $productId) {
+            // Ensure product exists and is active for the current context
+            $product = new Product($productId, false, $this->context->language->id, $this->context->shop->id);
+
+            if (Validate::isLoadedObject($product) && $product->isAssociatedToShop() && $product->active) {
+                $productData = $assembler->assembleProduct(['id_product' => $productId]);
+                if($productData) {
+                    $productsForTemplate[] = $presenter->present(
+                        $presentationSettings,
+                        $productData,
+                        $this->context->language
+                    );
+                }
             }
-
-            if (Validate::isLoadedObject($product)) {
-                $products[] = [
-                    'id_product' => $product->id,
-                    'name'       => $product->name,
-                    'price'      => Tools::displayPrice($product->price),
-                    'link'       => $this->context->link->getProductLink($product),
-                    'image'      => $imageUrl
-                ];
-            }
         }
 
-        if (empty($products)) {
-            return '';
+        if (!empty($productsForTemplate)) {
+            $this->context->smarty->assign([
+                'salesbooster_products' => $productsForTemplate,
+                'salesbooster_title' => $this->l('You might also like'),
+            ]);
+
+            return $this->display(__FILE__, 'views/templates/hook/focarousel.tpl');
         }
 
-        $this->context->smarty->assign([
-            'selectedProducts' => $products,
-        ]);
-
-        return $this->display(__FILE__, 'views/templates/hook/focarousel.tpl');
+        return '';
     }
 
     private function fetchBackendData(string $startDate, string $endDate): array
