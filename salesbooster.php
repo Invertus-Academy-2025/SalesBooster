@@ -299,7 +299,7 @@ class SalesBooster extends Module
             // Convert to pretty-printed JSON
             $json = json_encode($productData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 
-            $info= self::sendApiRequest("http://php:80/api/saveproducts", $json);
+            $info= self::sendApiRequest("http://php:80/api/save-products", $json);
 
             if ($json === false) {
                 throw new Exception('JSON encoding failed: ' . json_last_error_msg());
@@ -368,7 +368,7 @@ class SalesBooster extends Module
 
             $json = json_encode($orderData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 
-            $info= self::sendApiRequest("http://php:80/api/saveorders", $json);
+            $info= self::sendApiRequest("http://php:80/api/save-orders", $json);
 
             if ($json === false) {
                 throw new Exception('JSON encoding failed: ' . json_last_error_msg());
