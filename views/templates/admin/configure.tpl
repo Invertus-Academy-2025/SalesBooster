@@ -1,12 +1,16 @@
 {block name="content"}
 
     <div class="panel">
+        <div class="panel-body">
         <div class="panel-heading">
-            <h2 class="mb-3">{l s='Sales Analysis' mod='salesbooster'}</h2>
-            <p class="mb-0 text-success">
+            <h2 class="mb-3">{l s='Sales Analysis' mod='salesbooster'} at {$metadata.analysis_date}</h2>
+        </div>
+            <div class="mt-3">
+            <h4 class="mb-0 text-success">
                 {$opinion}
                 {$modulemessage}
-            </p>
+            </h4>
+        </div>
         </div>
     </div>
 
@@ -18,15 +22,13 @@
                 <h3 class="mb-3">{l s='Data Synchronisation' mod='salesbooster'}</h3>
                 <div class="mt-3">
                     <p class="mb-0">{$resultofsync}</p>
-                    <textarea class="form-control" rows="12" readonly>{$action_message nofilter}</textarea>
+                    <p class="mb-0">{$action_message nofilter}</p>
                 </div>
             </div>
             <form method="post" action="{$currentUrl|escape:'html':'UTF-8'}">
-                <button type="submit" name="submitActionSendProducts" class="btn btn-success mr-2">
-                    {l s='1. Sync products with backend' mod='salesbooster'}
-                </button>
-                <button type="submit" name="submitActionSendOrders" class="btn btn-info">
-                    {l s='2. Sync orders with backend' mod='salesbooster'}
+                <button type="submit" name="submitActionSendToExternal"
+                        class="btn btn-success btn-lg font-weight-bold px-4 py-2 mr-2">
+                    {l s='Synchronise products and sales with salesbooster module' mod='salesbooster'}
                 </button>
             </form>
         </div>
@@ -65,6 +67,7 @@
                 <h3 class="mb-3">{l s='Product Trends' mod='salesbooster'}</h3>
             </div>
             <form method="post" action="{$currentUrl|escape:'html':'UTF-8'}">
+                {if !empty($metadata.analysis_date)}
                 <div class="table-responsive">
                     <table class="table table-bordered table-striped">
                         <thead>
@@ -104,9 +107,15 @@
                         </tbody>
                     </table>
                 </div>
-                <button type="submit" name="submitSelectedProducts" class="btn btn-warning mt-3">
-                    {l s='Promote Selected Products' mod='salesbooster'}
-                </button>
+                    <button type="submit" name="submitSelectedProducts" class="btn btn-warning mt-3">
+                        {l s='Promote Selected Products' mod='salesbooster'}
+                    </button>
+                {else}
+                    <p>Since you haven't analysed sales, you can only disable the Carousel In Cart Page</p>
+                    <button type="submit" name="submitSelectedProducts" class="btn btn-warning mt-3">
+                        {l s='Disable Carousel' mod='salesbooster'}
+                    </button>
+                {/if}
             </form>
         </div>
     </div>
@@ -116,6 +125,7 @@
             <div class="panel-heading">
                 <h3 class="mb-3">{l s='Metadata' mod='salesbooster'}</h3>
             </div>
+            {if !empty($metadata.analysis_date)}
             <ul class="list-group">
                 <li class="list-group-item">
                     <strong>{l s='Total Products' mod='salesbooster'}:</strong> {$metadata.total_products}
@@ -130,6 +140,9 @@
                     <strong>{l s='Analysis Date' mod='salesbooster'}:</strong> {$metadata.analysis_date}
                 </li>
             </ul>
+            {else}
+                <p>Analyse sales first to see metadata</p>
+            {/if}
         </div>
     </div>
 
