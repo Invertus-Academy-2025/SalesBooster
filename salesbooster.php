@@ -43,6 +43,22 @@ class SalesBooster extends Module
             Shop::setContext(Shop::CONTEXT_ALL);
         }
 
+        $sql = 'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'salesbooster_discount` (
+            `id_salesbooster_discount` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            `id_product` INT UNSIGNED NOT NULL,
+            `discount_percentage` DECIMAL(5, 2) NOT NULL DEFAULT 0.00,
+            `is_selected` TINYINT(1) UNSIGNED NOT NULL DEFAULT 0,
+            `date_add` DATETIME NOT NULL,
+            `date_upd` DATETIME NOT NULL,
+            INDEX `idx_id_product` (`id_product`),
+            INDEX `idx_is_selected` (`is_selected`)
+         ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8;';
+
+        if (!Db::getInstance()->execute($sql)) {
+            PrestaShopLogger::addLog('SalesBooster: Failed to create salesbooster_discount table.', 3);
+            return false;
+        }
+
         return (
             parent::install()
             && Configuration::updateValue('MYMODULE_NAME', 'salesbooster')
@@ -51,11 +67,20 @@ class SalesBooster extends Module
         );
     }
 
-    public function uninstall():bool
+    public function uninstall(): bool
     {
+        $sql = 'DROP TABLE IF EXISTS `' . _DB_PREFIX_ . 'salesbooster_discount`;';
+
+        if (!Db::getInstance()->execute($sql)) {
+            PrestaShopLogger::addLog('SalesBooster: Failed to drop salesbooster_discount table.', 3);
+            return false;
+        }
+
         return (
             parent::uninstall()
             && Configuration::deleteByName('MYMODULE_NAME')
+            && Configuration::deleteByName('SALESBOOSTER_SELECTED_PRODUCTS')
+            && Configuration::deleteByName('SALESBOOSTER_DISCOUNTS')
         );
     }
 
