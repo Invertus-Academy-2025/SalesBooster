@@ -139,13 +139,8 @@ class SalesBooster extends Module
         $selectedProductsJson = Configuration::get('SALESBOOSTER_SELECTED_PRODUCTS');
         $savedProductIds = $selectedProductsJson ? json_decode($selectedProductsJson, true) : [];
 
-        // Handle Action 1
-        if (Tools::isSubmit('submitActionSendProducts')) {
+        if (Tools::isSubmit('submitActionSendToExternal')) {
             $this->processActionSendProducts();
-        }
-
-        // Handle Action 2
-        if (Tools::isSubmit('submitActionSendOrders')) {
             $this->processActionSendOrders();
         }
 
@@ -305,7 +300,6 @@ class SalesBooster extends Module
                 throw new Exception('JSON encoding failed: ' . json_last_error_msg());
             }
 
-            $this->action_message = htmlspecialchars($json, ENT_QUOTES);
             $this->resultofsync = htmlspecialchars($info, ENT_QUOTES);
 
         } catch (Exception $e) {
@@ -374,8 +368,7 @@ class SalesBooster extends Module
                 throw new Exception('JSON encoding failed: ' . json_last_error_msg());
             }
 
-            $this->action_message = htmlspecialchars($json, ENT_QUOTES);
-            $this->resultofsync = htmlspecialchars($info, ENT_QUOTES);
+            $this->resultofsync .= ". " . htmlspecialchars($info, ENT_QUOTES);
 
         } catch (Exception $e) {
             $this->action_message = $this->l('Error: ') . $e->getMessage();
