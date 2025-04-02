@@ -1,0 +1,16 @@
+
+.crossselling-products-salesbooster .products-carousel-salesbooster .slick-slide {
+    margin: 0 10px;
+}
+
+
+.crossselling-products-salesbooster .product-item {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+.crossselling-products-salesbooster .product-item .product-miniature {
+    height: 100%;
+    margin-bottom: 0;
+}
+
