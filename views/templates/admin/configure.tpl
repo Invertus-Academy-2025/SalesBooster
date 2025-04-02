@@ -1,5 +1,6 @@
 {block name="content"}
 
+    {if !empty($opinion) || !empty($modulemessage)}
     <div class="panel">
         <div class="panel-body">
         <div class="panel-heading">
@@ -13,6 +14,7 @@
         </div>
         </div>
     </div>
+    {/if}
 
     <div class="panel mt-4">
 
