@@ -21,15 +21,12 @@
                 <h3 class="mb-3">{l s='Data Synchronisation' mod='salesbooster'}</h3>
                 <div class="mt-3">
                     <p class="mb-0">{$resultofsync}</p>
-                    <textarea class="form-control" rows="12" readonly>{$action_message nofilter}</textarea>
+                    <p class="mb-0">{$action_message nofilter}</p>
                 </div>
             </div>
             <form method="post" action="{$currentUrl|escape:'html':'UTF-8'}">
-                <button type="submit" name="submitActionSendProducts" class="btn btn-success mr-2">
-                    {l s='1. Sync products with backend' mod='salesbooster'}
-                </button>
-                <button type="submit" name="submitActionSendOrders" class="btn btn-info">
-                    {l s='2. Sync orders with backend' mod='salesbooster'}
+                <button type="submit" name="submitActionSendDataToExternal" class="btn btn-success mr-2">
+                    {l s='Update Sales data with salesbooster module' mod='salesbooster'}
                 </button>
             </form>
         </div>
@@ -173,6 +170,7 @@
             <div class="panel-heading">
                 <h3 class="mb-3">{l s='Metadata' mod='salesbooster'}</h3>
             </div>
+            {if !empty($metadata.analysis_date)}
             <ul class="list-group">
                 <li class="list-group-item">
                     <strong>{l s='Total Products' mod='salesbooster'}:</strong> {$metadata.total_products}
@@ -187,6 +185,9 @@
                     <strong>{l s='Analysis Date' mod='salesbooster'}:</strong> {$metadata.analysis_date}
                 </li>
             </ul>
+            {else}
+                <p>{l s='Analyse sales first to see metadata' mod='salesbooster'}</p>
+            {/if}
         </div>
     </div>
 
