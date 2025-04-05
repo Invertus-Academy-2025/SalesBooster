@@ -2,11 +2,14 @@
 
     <div class="panel">
         <div class="panel-heading">
-            <h2 class="mb-3">{l s='Sales Analysis' mod='salesbooster'}</h2>
-            <p class="mb-0 text-success">
-                {$opinion}
-                {$modulemessage}
-            </p>
+            <h2 class="mb-3">{l s='Sales Booster Dashboard' mod='salesbooster'}</h2>
+        </div>
+        <div class="panel-body">
+            {if $modulemessage}
+                <div class="alert {if strpos($modulemessage|lower, 'error') !== false || strpos($modulemessage|lower, 'fail') !== false || strpos($modulemessage|lower, 'could not') !== false}alert-danger{else}alert-success{/if}" role="alert">
+                    {$modulemessage}
+                </div>
+            {/if}
         </div>
     </div>
 
@@ -32,45 +35,49 @@
         </div>
     </div>
 
-
-
     <div class="panel mt-4">
         <div class="panel-body">
             <div class="panel-heading">
-                <h3 class="mb-3">{l s='Select Date Range' mod='salesbooster'}</h3>
+                <h3 class="mb-3">{l s='Select Date Range for Analysis' mod='salesbooster'}</h3>
+                <p>{l s='Choose the start and end dates for the sales data you want to analyze.' mod='salesbooster'}</p>
             </div>
-            <form method="post" action="{$currentUrl|escape:'html':'UTF-8'}" class="mb-4">
-                <div class="form-group">
-                    <label for="start_date">{l s='Start Date' mod='salesbooster'}</label>
+            <form method="post" action="{$currentUrl|escape:'html':'UTF-8'}" class="form-inline mb-4">
+                <div class="form-group mr-2 mb-2">
+                    <label for="start_date" class="mr-2">{l s='Start Date' mod='salesbooster'}</label>
                     <input type="date" name="start_date" id="start_date" class="form-control"
                            value="{$start_date|escape:'html':'UTF-8'}" required>
                 </div>
 
-                <div class="form-group mt-3">
-                    <label for="end_date">{l s='End Date' mod='salesbooster'}</label>
+                <div class="form-group mr-2 mb-2">
+                    <label for="end_date" class="mr-2">{l s='End Date' mod='salesbooster'}</label>
                     <input type="date" name="end_date" id="end_date" class="form-control"
                            value="{$end_date|escape:'html':'UTF-8'}" required>
                 </div>
 
-                <button type="submit" name="submitSalesAnalysis" class="btn btn-primary mt-4">
-                    {l s='Analyze Sales' mod='salesbooster'}
+                <button type="submit" name="submitSalesAnalysis" class="btn btn-primary mb-2">
+                    <i class="material-icons">analytics</i> {l s='Analyze Sales' mod='salesbooster'}
                 </button>
             </form>
+
+            {if isset($analysis_opinion) && $analysis_opinion}
+                <div class="alert alert-info" role="alert">
+                    <strong>{l s='Analysis Opinion:' mod='salesbooster'}</strong> {$analysis_opinion|escape:'html':'UTF-8'}
+                </div>
+            {/if}
+
         </div>
     </div>
 
     <div class="panel mt-4">
         <div class="panel-body">
-            <div class="panel-heading">
-                <h3 class="mb-3">{l s='Product Trends' mod='salesbooster'}</h3>
-            </div>
+            <h3 class="mb-3">{l s='Promotion Suggestions (Not Currently Active)' mod='salesbooster'}</h3>
             <form method="post" action="{$currentUrl|escape:'html':'UTF-8'}">
                 <div class="table-responsive">
                     <table class="table table-bordered table-striped">
                         <thead>
-                        <tr class="bg-primary text-white">
-                            <th scope="col">{l s='Select' mod='salesbooster'}</th>
-                            <th scope="col">{l s='Apply Discount %' mod='salesbooster'}</th>
+                        <tr class="bg-light">
+                            <th scope="col" style="width: 5%;">{l s='Add' mod='salesbooster'}</th>
+                            <th scope="col" style="width: 15%;">{l s='Set Discount %' mod='salesbooster'}</th>
                             <th scope="col">{l s='Product ID' mod='salesbooster'}</th>
                             <th scope="col">{l s='Product Name' mod='salesbooster'}</th>
                             <th scope="col">{l s='Trend Status' mod='salesbooster'}</th>
@@ -79,33 +86,37 @@
                         </tr>
                         </thead>
                         <tbody>
-                        {foreach from=$products item=product}
+                        {if !empty($suggestion_products)}
+                            {foreach from=$suggestion_products item=product}
+                                <tr>
+                                    <td class="text-center">
+                                        <input type="checkbox" name="selected_suggestions[]" value="{$product.product_id}">
+                                    </td>
+                                    <td>
+                                        <input type="number" class="form-control form-control-sm"
+                                               name="suggestion_discounts[{$product.product_id}]"
+                                               min="0"
+                                               max="100"
+                                               step="0.01"
+                                               placeholder="{l s='e.g., 15.5' mod='salesbooster'}">
+                                    </td>
+                                    <td>{$product.product_id}</td>
+                                    <td>{$product.product_name|escape:'html':'UTF-8'}</td>
+                                    <td>{$product.trend_status|escape:'html':'UTF-8'}</td>
+                                    <td>{if isset($product.percentage_change)}{$product.percentage_change|string_format:"%.2f"}%{/if}</td>
+                                    <td>{if isset($product.key_dates) && is_array($product.key_dates)}{implode(', ', $product.key_dates)|escape:'html':'UTF-8'}{/if}</td>
+                                </tr>
+                            {/foreach}
+                        {else}
                             <tr>
-                                <td>
-                                    <input type="checkbox" name="selected_products[]" value="{$product.product_id}"
-                                           {if isset($selectedProducts) && in_array($product.product_id, $selectedProducts)}checked="checked"{/if}>
-                                </td>
-                                <td>
-                                <input type="number"
-                                       name="discounts[{$product.product_id}]"
-                                       value="{$savedDiscounts.{$product.product_id}|default:'%'}"
-                                       min="0"
-                                       max="100"
-                                       step="1"
-                                       placeholder="%">
-                                </td>
-                                <td>{$product.product_id}</td>
-                                <td>{$product.product_name}</td>
-                                <td>{$product.trend_status}</td>
-                                <td>{$product.percentage_change}%</td>
-                                <td>{implode(', ', $product.key_dates)}</td>
+                                <td colspan="7" class="text-center">{l s='No new promotion suggestions available (or all suggestions are already active).' mod='salesbooster'}</td>
                             </tr>
-                        {/foreach}
+                        {/if}
                         </tbody>
                     </table>
                 </div>
-                <button type="submit" name="submitSelectedProducts" class="btn btn-warning mt-3">
-                    {l s='Promote Selected Products' mod='salesbooster'}
+                <button type="submit" name="submitAddSuggestions" class="btn btn-success mt-3">
+                    <i class="material-icons">add_circle_outline</i> {l s='Add Selected Suggestions to Active Promotions' mod='salesbooster'}
                 </button>
             </form>
         </div>
@@ -114,8 +125,8 @@
     <div class="panel mt-4">
         <div class="panel-body">
             <div class="panel-heading">
-                <h3 class="mb-3">{l s='Currently Applied Discounts (from Database)' mod='salesbooster'}</h3>
-                <p>{l s='This table shows discounts currently marked as selected in the salesbooster_discount database table.' mod='salesbooster'}</p>
+                <h3 class="mb-3">{l s='Currently Active Promotions' mod='salesbooster'}</h3>
+                <p>{l s='These products have an active discount applied via this module.' mod='salesbooster'}</p>
             </div>
             <div class="table-responsive">
                 <table class="table table-bordered table-striped">
@@ -124,6 +135,7 @@
                         <th scope="col">{l s='Product ID' mod='salesbooster'}</th>
                         <th scope="col">{l s='Product Name' mod='salesbooster'}</th>
                         <th scope="col">{l s='Applied Discount (%)' mod='salesbooster'}</th>
+                        <th scope="col" style="width: 10%; text-align: center;">{l s='Actions' mod='salesbooster'}</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -133,11 +145,21 @@
                                 <td>{$discount.id_product}</td>
                                 <td>{$discount.product_name|escape:'html':'UTF-8'}</td>
                                 <td>{$discount.discount_percentage|string_format:"%.2f"}%</td>
+                                <td class="text-center">
+                                    <form method="post" action="{$currentUrl|escape:'html':'UTF-8'}" style="display: inline;">
+                                        <button type="submit" class="btn btn-danger btn-sm"
+                                                name="submitDeselectProduct_{$discount.id_product}"
+                                                title="{l s='Remove promotion for this product' mod='salesbooster'}"
+                                                onclick="return confirm('{l s='Are you sure you want to remove the discount for' mod='salesbooster'} {$discount.product_name|escape:'javascript':'UTF-8'}?');">
+                                            <i class="material-icons">remove_circle_outline</i>
+                                        </button>
+                                    </form>
+                                </td>
                             </tr>
                         {/foreach}
                     {else}
                         <tr>
-                            <td colspan="3" class="text-center">{l s='No discounts are currently selected in the database table.' mod='salesbooster'}</td>
+                            <td colspan="4" class="text-center">{l s='No discounts are currently active.' mod='salesbooster'}</td>
                         </tr>
                     {/if}
                     </tbody>

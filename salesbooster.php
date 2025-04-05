@@ -62,39 +62,6 @@ class SalesBooster extends Module
             return false;
         }
 
-        //Test data
-        try {
-            $exists = Db::getInstance()->getValue('SELECT 1 FROM `' . _DB_PREFIX_ . 'salesbooster_discount` WHERE `id_product` = 1'); // Use the ID you choose below
-
-            if (!$exists) {
-                $testDiscountData = [
-                    'id_product' => 1,
-                    'discount_percentage' => 25.50,
-                    'is_selected' => 1,
-                    'date_add' => date('Y-m-d H:i:s'),
-                    'date_upd' => date('Y-m-d H:i:s'),
-                ];
-
-                $inserted = Db::getInstance()->insert(
-                    'salesbooster_discount',
-                    $testDiscountData,
-                    false,
-                    true,
-                    Db::INSERT
-                );
-
-                if (!$inserted) {
-                    PrestaShopLogger::addLog('SalesBooster: Failed to insert temporary test discount data during install.', 2);
-                } else {
-                    PrestaShopLogger::addLog('SalesBooster: Inserted temporary test discount data for product ID 1.', 1);
-                }
-            } else {
-                PrestaShopLogger::addLog('SalesBooster: Temporary test discount data for product ID 1 already exists, skipping insertion.', 1);
-            }
-        } catch (Exception $e) {
-            PrestaShopLogger::addLog('SalesBooster: Error inserting temporary test discount data: ' . $e->getMessage(), 3);
-        }
-
         return (
             parent::install()
             && Configuration::updateValue('MYMODULE_NAME', 'salesbooster')
@@ -171,40 +138,20 @@ class SalesBooster extends Module
      */
     public function getContent()
     {
-        $startDate = Tools::getValue('start_date', '2025-01-01');
-        $endDate = Tools::getValue('end_date', '2026-01-01');
-        $this->action_message = ''; // Initialize messages
+        $startDate = Tools::getValue('start_date', date('Y-m-d', strtotime('-1 year'))); // Default start date
+        $endDate = Tools::getValue('end_date', date('Y-m-d')); // Default end date
+        $this->action_message = '';
         $this->resultofsync = '';
         $this->modulemessage = '';
 
-        // --- Existing Form Handlers ---
-        if (Tools::isSubmit('submitSelectedProducts')) {
-            // Keep the OLD logic for now, we'll change this later
-            $selectedProducts = Tools::getValue('selected_products');
-            $discounts = Tools::getValue('discounts');
-
-            if (!empty($selectedProducts)) {
-                Configuration::updateValue('SALESBOOSTER_SELECTED_PRODUCTS', json_encode($selectedProducts));
-                Configuration::updateValue('SALESBOOSTER_DISCOUNTS', json_encode($discounts));
-
-                try {
-                    // This still uses the old $discounts array from the form
-                    $this->processProductDiscounts($discounts);
-                } catch (Exception $e) {
-                    PrestaShopLogger::addLog("Discount processing failed: " . $e->getMessage(), 3);
-                }
-                $this->modulemessage = "The banner and the discounts were updated (using old method)"; // Clarify message
-            } else {
-                Configuration::deleteByName('SALESBOOSTER_SELECTED_PRODUCTS');
-                Configuration::deleteByName('SALESBOOSTER_DISCOUNTS');
-                $this->modulemessage = "The banner was disabled (old method)"; // Clarify message
-            }
+        if (Tools::isSubmit('submitAddSuggestions')) {
+            $this->handleSuggestionSubmission();
         }
 
-        $savedDiscountsJson = Configuration::get('SALESBOOSTER_DISCOUNTS');
-        $savedDiscounts = $savedDiscountsJson ? json_decode($savedDiscountsJson, true) : [];
-        $selectedProductsJson = Configuration::get('SALESBOOSTER_SELECTED_PRODUCTS');
-        $savedProductIds = $selectedProductsJson ? json_decode($selectedProductsJson, true) : [];
+        $deselectionProductId = $this->getDeselectionProductId();
+        if ($deselectionProductId > 0) {
+            $this->handleDeselection($deselectionProductId);
+        }
 
         if (Tools::isSubmit('submitActionSendProducts')) {
             $this->processActionSendProducts();
@@ -212,45 +159,50 @@ class SalesBooster extends Module
         if (Tools::isSubmit('submitActionSendOrders')) {
             $this->processActionSendOrders();
         }
-        // --- End Existing Form Handlers ---
 
-
-        // --- Fetch Data for Analysis Table ---
-        if (Tools::isSubmit('submitSalesAnalysis')) {
-            $data = $this->fetchBackendData($startDate, $endDate);
-        } else {
-            $data = [
-                'analysis' => ['products' => [], 'opinion'  => ''],
-                'metadata' => ['total_products' => 0, 'total_orders' => 0, 'total_quantity' => 0, 'analysis_date' => ''],
-            ];
-        }
-        // --- End Fetch Data for Analysis Table ---
-
-
-        // --- Fetch Data for NEW Selected Discounts Table ---
-        $selectedDiscountDetails = [];
-        $selectedDiscountsCollection = SalesBoosterDiscount::getDiscountSuggestions(true); // Get only is_selected = true
-
+        $currentlySelectedProductIds = [];
+        $selectedDiscountsCollection = SalesBoosterDiscount::getDiscountSuggestions(true);
         foreach ($selectedDiscountsCollection as $discount) {
-            /** @var SalesBoosterDiscount $discount */
-            $product = new Product($discount->id_product, false, $this->context->language->id);
-            if (Validate::isLoadedObject($product)) {
-                $selectedDiscountDetails[] = [
-                    'id_product' => $discount->id_product,
-                    'product_name' => $product->name, // Get product name
-                    'discount_percentage' => $discount->discount_percentage,
-                    // Add other fields from SalesBoosterDiscount if needed later
-                ];
-            } else {
-                // Optionally log if a product referenced in the discount table doesn't exist
-                PrestaShopLogger::addLog(
-                    "SalesBooster: Product ID {$discount->id_product} found in salesbooster_discount table but not in product table.",
-                    2 // Warning level
-                );
+            $currentlySelectedProductIds[] = (int)$discount->id_product;
+        }
+
+        $analysisData = [
+            'analysis' => ['products' => [], 'opinion'  => ''],
+            'metadata' => ['total_products' => 0, 'total_orders' => 0, 'total_quantity' => 0, 'analysis_date' => ''],
+        ];
+
+        if (Tools::isSubmit('submitSalesAnalysis')) {
+            try {
+                $analysisData = $this->fetchBackendData($startDate, $endDate);
+            } catch (Exception $e) {
+                $this->modulemessage = $this->trans('Error fetching analysis data: ', [], 'Modules.Salesbooster.Admin') . $e->getMessage();
             }
         }
-        // --- End Fetch Data for NEW Selected Discounts Table ---
 
+        $suggestionProducts = [];
+        if (isset($analysisData['analysis']['products']) && is_array($analysisData['analysis']['products'])) {
+            foreach ($analysisData['analysis']['products'] as $product) {
+                if (isset($product['product_id']) && is_numeric($product['product_id'])) {
+                    $productId = (int)$product['product_id'];
+                    if (!in_array($productId, $currentlySelectedProductIds)) {
+                        $suggestionProducts[] = $product;
+                    }
+                }
+            }
+        }
+
+        $appliedDiscountDetails = [];
+        foreach ($selectedDiscountsCollection as $discount) {
+            $product = new Product($discount->id_product, false, $this->context->language->id);
+            if (Validate::isLoadedObject($product)) {
+                $appliedDiscountDetails[] = [
+                    'id_salesbooster_discount' => $discount->id,
+                    'id_product' => $discount->id_product,
+                    'product_name' => $product->name,
+                    'discount_percentage' => $discount->discount_percentage,
+                ];
+            }
+        }
 
         $currentUrl = $this->context->link->getAdminLink('AdminModules', true, [], [
             'configure' => $this->name,
@@ -258,22 +210,17 @@ class SalesBooster extends Module
             'module_name' => $this->name,
         ]);
 
-        // Assign all variables to Smarty
         $this->context->smarty->assign([
             'currentUrl'  => $currentUrl,
-            'products'    => $data['analysis']['products'],
-            'metadata'    => $data['metadata'],
-            'opinion'     => $data['analysis']['opinion'],
+            'suggestion_products' => $suggestionProducts,
+            'analysis_opinion'     => $analysisData['analysis']['opinion'] ?? '',
+            'applied_discounts' => $appliedDiscountDetails,
+            'metadata'    => $analysisData['metadata'],
             'start_date'  => $startDate,
             'end_date'    => $endDate,
             'action_message' => $this->action_message,
             'resultofsync' => $this->resultofsync,
             'modulemessage' => $this->modulemessage,
-            // Variables for the OLD table (Product Trends)
-            'selectedProducts' => $savedProductIds,
-            'savedDiscounts' => $savedDiscounts,
-            // NEW Variable for the new table (Applied Discounts)
-            'applied_discounts' => $selectedDiscountDetails, // Changed name for clarity
         ]);
 
         return $this->display(__FILE__, 'views/templates/admin/configure.tpl');
@@ -360,6 +307,81 @@ class SalesBooster extends Module
 
         return $data;
     }
+
+    private function handleSuggestionSubmission(): void
+    {
+        $submittedProductIds = array_map('intval', Tools::getValue('selected_suggestions', []));
+        $submittedDiscounts = Tools::getValue('suggestion_discounts', []);
+
+        if (empty($submittedProductIds)) {
+            $this->modulemessage = $this->trans('No suggestions were selected to add.', [], 'Modules.Salesbooster.Admin');
+            return;
+        }
+
+        foreach ($submittedProductIds as $productId) {
+            if ($productId <= 0) {
+                continue;
+            }
+
+            $discountValueInput = $submittedDiscounts[$productId] ?? '';
+            $discountPercentage = 0.0;
+
+            if (is_numeric($discountValueInput)) {
+                $discountValueFloat = (float)$discountValueInput;
+                if ($discountValueFloat > 0 && $discountValueFloat <= 100) {
+                    $discountPercentage = $discountValueFloat;
+                } elseif ($discountValueFloat > 100) {
+                    $discountPercentage = 100.0;
+                }
+            }
+
+            $discountEntry = SalesBoosterDiscount::findByProductId((int)$productId);
+
+            if ($discountEntry instanceof SalesBoosterDiscount && $discountEntry->id) {
+                $discountEntry->is_selected = true;
+                $discountEntry->discount_percentage = $discountPercentage;
+                if ($discountEntry->update()) {
+                    $this->applyProductDiscount($productId, $discountPercentage);
+                }
+            } else {
+                $newDiscount = new SalesBoosterDiscount();
+                $newDiscount->id_product = (int)$productId;
+                $newDiscount->is_selected = true;
+                $newDiscount->discount_percentage = $discountPercentage;
+                if ($newDiscount->add()) {
+                    $this->applyProductDiscount($productId, $discountPercentage);
+                }
+            }
+        }
+    }
+
+    private function handleDeselection(int $productIdToDeselect): void
+    {
+        $discountEntry = SalesBoosterDiscount::findByProductId($productIdToDeselect);
+
+        if ($discountEntry instanceof SalesBoosterDiscount && $discountEntry->id) {
+            $discountEntry->delete();
+        } else {
+            $this->modulemessage = $this->trans('Could not find the product entry to delete.', [], 'Modules.Salesbooster.Admin');
+            return;
+        }
+
+        $this->applyProductDiscount($productIdToDeselect, 0);
+    }
+
+    private function getDeselectionProductId(): int
+    {
+        foreach (Tools::getAllValues() as $key => $value) {
+            if (strpos($key, 'submitDeselectProduct_') === 0) {
+                $productId = (int)str_replace('submitDeselectProduct_', '', $key);
+                if ($productId > 0) {
+                    return $productId;
+                }
+            }
+        }
+        return 0;
+    }
+
     private function processActionSendProducts(): void
     {
         try {
@@ -532,85 +554,91 @@ class SalesBooster extends Module
 
     protected function applyProductDiscount(int $productId, float $discount)
     {
-        // Validate input
         if ($discount < 0 || $discount > 100) {
-            throw new Exception("Invalid discount value for product $productId");
+            throw new Exception("Invalid discount value ($discount) for product $productId. Must be between 0 and 100.");
         }
 
-        $product = new Product($productId);
-        if (!Validate::isLoadedObject($product)) {
-            throw new Exception("Product $productId not found");
+        if ($discount > 0) {
+            $product = new Product($productId);
+            if (!Validate::isLoadedObject($product)) {
+                throw new Exception("Product $productId not found when trying to apply discount.");
+            }
         }
 
-        // Create/update specific price
         $this->updateSpecificPrice(
             $productId,
             $discount,
             $this->context->shop->id,
             $this->context->currency->id,
-            $this->context->customer->id_default_group
+            0
         );
     }
 
     protected function updateSpecificPrice(
         int $productId,
-        int $discount,
+        float $discount,
         int $shopId,
         int $currencyId,
         ?int $groupId = null
     ) {
         try {
-            $groupId = $groupId ?? 0;
+            $targetGroupId = 0;
+            $id_specific_price = 0;
 
-            // 1. Find existing specific price with exact matching criteria
-            $existingPrice = SpecificPrice::getSpecificPrice(
+            $existingPriceRuleArray = SpecificPrice::getSpecificPrice(
                 $productId,
                 $shopId,
                 $currencyId,
                 0,
-                $groupId,
+                $targetGroupId,
                 1,
                 0,
                 0,
-                0
+                0,
+                1
             );
 
-            // 2. Handle discount removal
-            if ($discount <= 0) {
-                if ($existingPrice && isset($existingPrice['id_specific_price'])) {
-                    $specificPrice = new SpecificPrice($existingPrice['id_specific_price']);
-                    if ($specificPrice->delete()) {
-                        PrestaShopLogger::addLog("Deleted specific price for product $productId", 1);
+            if (is_array($existingPriceRuleArray) && isset($existingPriceRuleArray['id_specific_price'])) {
+                $id_specific_price = (int)$existingPriceRuleArray['id_specific_price'];
+            }
+
+            if ($discount < 0.0001) {
+                if ($id_specific_price > 0) {
+                    $specificPriceToDelete = new SpecificPrice($id_specific_price);
+                    if (Validate::isLoadedObject($specificPriceToDelete)) {
+                        if ($specificPriceToDelete->delete()) {
+                            Cache::clean('SpecificPrice::getSpecificPrice_' . $productId . '-' . $shopId . '-*');
+                        }
                     }
                 }
                 return;
             }
 
-            $specificPrice = $existingPrice ? new SpecificPrice($existingPrice['id_specific_price']) : new SpecificPrice();
+            $specificPrice = new SpecificPrice($id_specific_price);
 
-            // Set mandatory fields
             $specificPrice->id_product = $productId;
+            $specificPrice->id_product_attribute = 0;
             $specificPrice->id_shop = $shopId;
             $specificPrice->id_currency = $currencyId;
-            $specificPrice->id_group = $groupId;
-            $specificPrice->from_quantity = 1;
-            $specificPrice->price = -1; // default product price
-            $specificPrice->reduction_type = 'percentage';
-            $specificPrice->reduction = $discount / 100;
-            // universal
             $specificPrice->id_country = 0;
+            $specificPrice->id_group = $targetGroupId;
             $specificPrice->id_customer = 0;
-            $specificPrice->from = '0000-00-00';
-            $specificPrice->to = '0000-00-00';
+            $specificPrice->price = -1.00;
+            $specificPrice->from_quantity = 1;
+            $specificPrice->reduction = round($discount / 100.0, 6);
+            $specificPrice->reduction_tax = 1;
+            $specificPrice->reduction_type = 'percentage';
+            $specificPrice->from = '0000-00-00 00:00:00';
+            $specificPrice->to = '0000-00-00 00:00:00';
 
             if (!$specificPrice->save()) {
-                throw new Exception("Failed to save specific price: " . print_r($specificPrice->getErrors(), true));
+                throw new Exception("Failed to save specific price for product $productId.");
+            } else {
+                Cache::clean('SpecificPrice::getSpecificPrice_' . $productId . '-' . $shopId . '-*');
             }
 
         } catch (Exception $e) {
-            PrestaShopLogger::addLog("Price update error: {$e->getMessage()}", 3);
             throw $e;
         }
     }
-
 }
