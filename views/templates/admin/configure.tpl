@@ -114,6 +114,41 @@
     <div class="panel mt-4">
         <div class="panel-body">
             <div class="panel-heading">
+                <h3 class="mb-3">{l s='Currently Applied Discounts (from Database)' mod='salesbooster'}</h3>
+                <p>{l s='This table shows discounts currently marked as selected in the salesbooster_discount database table.' mod='salesbooster'}</p>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-bordered table-striped">
+                    <thead>
+                    <tr class="bg-info text-white">
+                        <th scope="col">{l s='Product ID' mod='salesbooster'}</th>
+                        <th scope="col">{l s='Product Name' mod='salesbooster'}</th>
+                        <th scope="col">{l s='Applied Discount (%)' mod='salesbooster'}</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {if !empty($applied_discounts)}
+                        {foreach from=$applied_discounts item=discount}
+                            <tr>
+                                <td>{$discount.id_product}</td>
+                                <td>{$discount.product_name|escape:'html':'UTF-8'}</td>
+                                <td>{$discount.discount_percentage|string_format:"%.2f"}%</td>
+                            </tr>
+                        {/foreach}
+                    {else}
+                        <tr>
+                            <td colspan="3" class="text-center">{l s='No discounts are currently selected in the database table.' mod='salesbooster'}</td>
+                        </tr>
+                    {/if}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel mt-4">
+        <div class="panel-body">
+            <div class="panel-heading">
                 <h3 class="mb-3">{l s='Metadata' mod='salesbooster'}</h3>
             </div>
             <ul class="list-group">

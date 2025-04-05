@@ -7,6 +7,9 @@ use PrestaShop\PrestaShop\Adapter\Product\PriceFormatter;
 use PrestaShop\PrestaShop\Adapter\Product\ProductColorsRetriever;
 use PrestaShop\PrestaShop\Core\Product\ProductListingPresenter;
 use PrestaShop\PrestaShop\Core\Product\ProductPresenter;
+
+require_once _PS_MODULE_DIR_ . 'salesbooster/classes/SalesBoosterDiscount.php';
+
 class SalesBooster extends Module
 {
     protected $action_message;
@@ -57,6 +60,39 @@ class SalesBooster extends Module
         if (!Db::getInstance()->execute($sql)) {
             PrestaShopLogger::addLog('SalesBooster: Failed to create salesbooster_discount table.', 3);
             return false;
+        }
+
+        //Test data
+        try {
+            $exists = Db::getInstance()->getValue('SELECT 1 FROM `' . _DB_PREFIX_ . 'salesbooster_discount` WHERE `id_product` = 1'); // Use the ID you choose below
+
+            if (!$exists) {
+                $testDiscountData = [
+                    'id_product' => 1,
+                    'discount_percentage' => 25.50,
+                    'is_selected' => 1,
+                    'date_add' => date('Y-m-d H:i:s'),
+                    'date_upd' => date('Y-m-d H:i:s'),
+                ];
+
+                $inserted = Db::getInstance()->insert(
+                    'salesbooster_discount',
+                    $testDiscountData,
+                    false,
+                    true,
+                    Db::INSERT
+                );
+
+                if (!$inserted) {
+                    PrestaShopLogger::addLog('SalesBooster: Failed to insert temporary test discount data during install.', 2);
+                } else {
+                    PrestaShopLogger::addLog('SalesBooster: Inserted temporary test discount data for product ID 1.', 1);
+                }
+            } else {
+                PrestaShopLogger::addLog('SalesBooster: Temporary test discount data for product ID 1 already exists, skipping insertion.', 1);
+            }
+        } catch (Exception $e) {
+            PrestaShopLogger::addLog('SalesBooster: Error inserting temporary test discount data: ' . $e->getMessage(), 3);
         }
 
         return (
@@ -137,8 +173,13 @@ class SalesBooster extends Module
     {
         $startDate = Tools::getValue('start_date', '2025-01-01');
         $endDate = Tools::getValue('end_date', '2026-01-01');
+        $this->action_message = ''; // Initialize messages
+        $this->resultofsync = '';
+        $this->modulemessage = '';
 
+        // --- Existing Form Handlers ---
         if (Tools::isSubmit('submitSelectedProducts')) {
+            // Keep the OLD logic for now, we'll change this later
             $selectedProducts = Tools::getValue('selected_products');
             $discounts = Tools::getValue('discounts');
 
@@ -146,16 +187,17 @@ class SalesBooster extends Module
                 Configuration::updateValue('SALESBOOSTER_SELECTED_PRODUCTS', json_encode($selectedProducts));
                 Configuration::updateValue('SALESBOOSTER_DISCOUNTS', json_encode($discounts));
 
-                    try {
-                        $this->processProductDiscounts($discounts);
-                    } catch (Exception $e) {
-                        PrestaShopLogger::addLog("Discount processing failed: " . $e->getMessage(), 3);
-                    }
-                $this->modulemessage = "The banner and the discounts were updated";
+                try {
+                    // This still uses the old $discounts array from the form
+                    $this->processProductDiscounts($discounts);
+                } catch (Exception $e) {
+                    PrestaShopLogger::addLog("Discount processing failed: " . $e->getMessage(), 3);
+                }
+                $this->modulemessage = "The banner and the discounts were updated (using old method)"; // Clarify message
             } else {
                 Configuration::deleteByName('SALESBOOSTER_SELECTED_PRODUCTS');
                 Configuration::deleteByName('SALESBOOSTER_DISCOUNTS');
-                $this->modulemessage = "The banner was disabled";
+                $this->modulemessage = "The banner was disabled (old method)"; // Clarify message
             }
         }
 
@@ -164,32 +206,51 @@ class SalesBooster extends Module
         $selectedProductsJson = Configuration::get('SALESBOOSTER_SELECTED_PRODUCTS');
         $savedProductIds = $selectedProductsJson ? json_decode($selectedProductsJson, true) : [];
 
-        // Handle Action 1
         if (Tools::isSubmit('submitActionSendProducts')) {
             $this->processActionSendProducts();
         }
-
-        // Handle Action 2
         if (Tools::isSubmit('submitActionSendOrders')) {
             $this->processActionSendOrders();
         }
+        // --- End Existing Form Handlers ---
 
+
+        // --- Fetch Data for Analysis Table ---
         if (Tools::isSubmit('submitSalesAnalysis')) {
             $data = $this->fetchBackendData($startDate, $endDate);
         } else {
             $data = [
-                'analysis' => [
-                    'products' => [],
-                    'opinion'  => ''
-                ],
-                'metadata' => [
-                    'total_products' => 0,
-                    'total_orders'   => 0,
-                    'total_quantity' => 0,
-                    'analysis_date'  => '',
-                ],
+                'analysis' => ['products' => [], 'opinion'  => ''],
+                'metadata' => ['total_products' => 0, 'total_orders' => 0, 'total_quantity' => 0, 'analysis_date' => ''],
             ];
         }
+        // --- End Fetch Data for Analysis Table ---
+
+
+        // --- Fetch Data for NEW Selected Discounts Table ---
+        $selectedDiscountDetails = [];
+        $selectedDiscountsCollection = SalesBoosterDiscount::getDiscountSuggestions(true); // Get only is_selected = true
+
+        foreach ($selectedDiscountsCollection as $discount) {
+            /** @var SalesBoosterDiscount $discount */
+            $product = new Product($discount->id_product, false, $this->context->language->id);
+            if (Validate::isLoadedObject($product)) {
+                $selectedDiscountDetails[] = [
+                    'id_product' => $discount->id_product,
+                    'product_name' => $product->name, // Get product name
+                    'discount_percentage' => $discount->discount_percentage,
+                    // Add other fields from SalesBoosterDiscount if needed later
+                ];
+            } else {
+                // Optionally log if a product referenced in the discount table doesn't exist
+                PrestaShopLogger::addLog(
+                    "SalesBooster: Product ID {$discount->id_product} found in salesbooster_discount table but not in product table.",
+                    2 // Warning level
+                );
+            }
+        }
+        // --- End Fetch Data for NEW Selected Discounts Table ---
+
 
         $currentUrl = $this->context->link->getAdminLink('AdminModules', true, [], [
             'configure' => $this->name,
@@ -197,6 +258,7 @@ class SalesBooster extends Module
             'module_name' => $this->name,
         ]);
 
+        // Assign all variables to Smarty
         $this->context->smarty->assign([
             'currentUrl'  => $currentUrl,
             'products'    => $data['analysis']['products'],
@@ -206,9 +268,12 @@ class SalesBooster extends Module
             'end_date'    => $endDate,
             'action_message' => $this->action_message,
             'resultofsync' => $this->resultofsync,
-            'selectedProducts' => $savedProductIds,
             'modulemessage' => $this->modulemessage,
-            'savedDiscounts' => $savedDiscounts
+            // Variables for the OLD table (Product Trends)
+            'selectedProducts' => $savedProductIds,
+            'savedDiscounts' => $savedDiscounts,
+            // NEW Variable for the new table (Applied Discounts)
+            'applied_discounts' => $selectedDiscountDetails, // Changed name for clarity
         ]);
 
         return $this->display(__FILE__, 'views/templates/admin/configure.tpl');
