@@ -1,25 +1,56 @@
-SalesBooster - AI sales analytics module.
+# SalesBooster Module
 
-! Remade repo because of git issues
+## Overview
 
-Changelist in this version:
-- Added configuration page for the module.
-- Added the possibility to call symfony-app endpoint from backoffice.
-- Added a template file to list out the response data and to choose which order dates should be fetched.
+**SalesBooster** is a PrestaShop module that helps store administrators analyze sales trends using the OpenAI API. It identifies products with decreasing sales performance and allows admins to promote these products using targeted discounts and a carousel display.
 
-Additional set up:
+---
 
-If we want the containers to be able to see each other, we need to add them to the same network, otherwise calls from the backoffice to symfony-app's endpoints will fail:
-- First, create a network: `docker network create salesbooster_network` (Run this once)
-- Secondly, add these lines to the compose.yml file of both projects so they know to which network they need to attach:
-```
-networks:
-    default:
-        name: salesbooster_network
-        external: true
- ```
-- Lastly, run these commands on both projects:
- ```
- docker compose down
- docker compose up -d
-```
+## Features
+
+- 📊 **Sales Analysis**: Uses OpenAI API to analyze sales data and highlight products with declining trends.
+- 🎯 **Product Selection**: Admin can select which products to feature based on the analysis.
+- 🏷️ **Add Discounts**: Easily apply discounts to selected products from the admin panel.
+- 🛒 **Cart Integration**: Promotional products are shown in a carousel view in the cart before checkout, boosting visibility and conversions.
+
+---
+
+## Admin Panel Screenshots
+
+### Sales Analysis & Configuration
+![Admin Panel](https://github.com/user-attachments/assets/d5e15b79-3f23-4487-aec5-e52175c094cd)
+
+---
+
+## Front Office Preview
+
+### Product Carousel in Cart
+![Carousel View](https://github.com/user-attachments/assets/a46938f6-f027-44b4-a66a-99388e5a2523)
+
+---
+
+## Installation
+
+1. Download Prestashop and symfony-app branch called "SalesBooster". Install them using docker with the correct .env and compose.yml files.
+2. Upload the module to your `/modules` directory.
+3. Install it from the PrestaShop admin panel.
+
+
+---
+
+## Notes
+
+- Requires to Run Symfony-app container using SalesBooster Branch for api calls.
+- Requires the correct .env and compose.yml files for both projects.
+- Sales data of more than a few days must be available for accurate analysis.
+
+---
+
+## Authors
+
+This module was created during the **Invertus 2025 PrestaShop Academy** as part of a learning project.  
+Developed by:
+
+- Ignas
+- Domas
+
