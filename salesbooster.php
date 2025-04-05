@@ -119,7 +119,6 @@ class SalesBooster extends Module
             ]
         );
 
-
         $this->context->controller->registerStylesheet(
             'modules-salesbooster-custom-css',
             'modules/'.$this->name.'/views/css/salesbooster-carousel.css', // Local path
@@ -156,6 +155,7 @@ class SalesBooster extends Module
         if (Tools::isSubmit('submitActionSendProducts')) {
             $this->processActionSendProducts();
         }
+
         if (Tools::isSubmit('submitActionSendOrders')) {
             $this->processActionSendOrders();
         }
@@ -174,6 +174,8 @@ class SalesBooster extends Module
         if (Tools::isSubmit('submitSalesAnalysis')) {
             try {
                 $analysisData = $this->fetchBackendData($startDate, $endDate);
+                $this->modulemessage = $this->trans('Analysis successful!', [], 'Modules.Salesbooster.Admin');
+
             } catch (Exception $e) {
                 $this->modulemessage = $this->trans('Error fetching analysis data: ', [], 'Modules.Salesbooster.Admin') . $e->getMessage();
             }
@@ -226,57 +228,68 @@ class SalesBooster extends Module
         return $this->display(__FILE__, 'views/templates/admin/configure.tpl');
     }
 
-    public function hookDisplayCrossSellingShoppingCart($params)
+    public function hookDisplayCrossSellingShoppingCart($params): string
     {
-        // 1. Get Product IDs from Configuration
-        $selectedProductsJson = Configuration::get('SALESBOOSTER_SELECTED_PRODUCTS');
-        if (empty($selectedProductsJson)) {
-            return ''; // No products configured
-        }
+        $selectedDiscounts = SalesBoosterDiscount::getDiscountSuggestions(true);
 
-        $selectedProductIds = json_decode($selectedProductsJson, true);
-        if (!is_array($selectedProductIds) || empty($selectedProductIds)) {
+        if (!$selectedDiscounts->count()) {
             return '';
         }
 
-        // Filter out non-numeric IDs just in case
-        $selectedProductIds = array_filter($selectedProductIds, 'is_numeric');
-        $selectedProductIds = array_map('intval', $selectedProductIds);
-
-        if (empty($selectedProductIds)) {
-            return ''; // No valid product IDs found
-        }
-
-        // 2. Get Product Data (Formatted for the template)
         $productsForTemplate = [];
-        $presenterFactory = new ProductPresenterFactory($this->context);
-        $presentationSettings = $presenterFactory->getPresentationSettings();
-        $presenter = new ProductPresenter(
-            new ImageRetriever(
-                $this->context->link
-            ),
-            $this->context->link,
-            new PriceFormatter(),
-            new ProductColorsRetriever(),
-            $this->context->getTranslator()
-        );
+        try {
+            $presenterFactory = new ProductPresenterFactory($this->context);
+            $presentationSettings = $presenterFactory->getPresentationSettings();
+            $pricePrecision = Configuration::get('PS_PRICE_DISPLAY_PRECISION') ?? 2;
 
-        $assembler = new ProductAssembler($this->context);
+            $presenter = new ProductPresenter(
+                new ImageRetriever($this->context->link),
+                $this->context->link,
+                new PriceFormatter(),
+                new ProductColorsRetriever(),
+                $this->context->getTranslator()
+            );
 
-        foreach ($selectedProductIds as $productId) {
-            // Ensure product exists and is active for the current context
-            $product = new Product($productId, false, $this->context->language->id, $this->context->shop->id);
+            $assembler = new ProductAssembler($this->context);
 
-            if (Validate::isLoadedObject($product) && $product->isAssociatedToShop() && $product->active) {
-                $productData = $assembler->assembleProduct(['id_product' => $productId]);
-                if($productData) {
-                    $productsForTemplate[] = $presenter->present(
-                        $presentationSettings,
-                        $productData,
-                        $this->context->language
-                    );
+            foreach ($selectedDiscounts as $discount) {
+                $productId = (int)$discount->id_product;
+                $salesBoosterDiscountPercentage = (float)$discount->discount_percentage;
+
+                $product = new Product($productId, false, $this->context->language->id, $this->context->shop->id);
+
+                if (Validate::isLoadedObject($product) && $product->isAssociatedToShop() && $product->active) {
+                    $productData = $assembler->assembleProduct(['id_product' => $productId]);
+                    if($productData) {
+                        $presentedProduct = $presenter->present(
+                            $presentationSettings,
+                            $productData,
+                            $this->context->language
+                        );
+
+                        if ($salesBoosterDiscountPercentage > 0) {
+                            $presentedProduct['has_discount'] = true;
+                            $presentedProduct['discount_type'] = 'percentage';
+                            $formattedPercentage = '-' . number_format($salesBoosterDiscountPercentage, $pricePrecision) . '%';
+                            $presentedProduct['discount_percentage'] = $formattedPercentage;
+                            $presentedProduct['discount_percentage_absolute'] = $salesBoosterDiscountPercentage;
+                        } else {
+                            $presentedProduct['has_discount'] = false;
+                            unset(
+                                $presentedProduct['discount_type'],
+                                $presentedProduct['discount_percentage'],
+                                $presentedProduct['discount_percentage_absolute'],
+                                $presentedProduct['discount_amount_to_display']
+                            );
+                            $presentedProduct['regular_price'] = null;
+                        }
+
+                        $productsForTemplate[] = $presentedProduct;
+                    }
                 }
             }
+        } catch (Exception $e) {
+            return '';
         }
 
         if (!empty($productsForTemplate)) {
@@ -353,6 +366,8 @@ class SalesBooster extends Module
                 }
             }
         }
+
+        $this->modulemessage = $this->trans('Suggestions added!', [], 'Modules.Salesbooster.Admin');
     }
 
     private function handleDeselection(int $productIdToDeselect): void
@@ -362,7 +377,6 @@ class SalesBooster extends Module
         if ($discountEntry instanceof SalesBoosterDiscount && $discountEntry->id) {
             $discountEntry->delete();
         } else {
-            $this->modulemessage = $this->trans('Could not find the product entry to delete.', [], 'Modules.Salesbooster.Admin');
             return;
         }
 

@@ -39,9 +39,8 @@
         <div class="panel-body">
             <div class="panel-heading">
                 <h3 class="mb-3">{l s='Select Date Range for Analysis' mod='salesbooster'}</h3>
-                <p>{l s='Choose the start and end dates for the sales data you want to analyze.' mod='salesbooster'}</p>
             </div>
-            <form method="post" action="{$currentUrl|escape:'html':'UTF-8'}" class="form-inline mb-4">
+            <form method="post" action="{$currentUrl|escape:'html':'UTF-8'}" class="form-inline align-items-end">
                 <div class="form-group mr-2 mb-2">
                     <label for="start_date" class="mr-2">{l s='Start Date' mod='salesbooster'}</label>
                     <input type="date" name="start_date" id="start_date" class="form-control"
@@ -54,17 +53,18 @@
                            value="{$end_date|escape:'html':'UTF-8'}" required>
                 </div>
 
-                <button type="submit" name="submitSalesAnalysis" class="btn btn-primary mb-2">
+                <button type="submit" name="submitSalesAnalysis" class="btn btn-primary mb-2 ml-3">
                     <i class="material-icons">analytics</i> {l s='Analyze Sales' mod='salesbooster'}
                 </button>
             </form>
 
-            {if isset($analysis_opinion) && $analysis_opinion}
-                <div class="alert alert-info" role="alert">
-                    <strong>{l s='Analysis Opinion:' mod='salesbooster'}</strong> {$analysis_opinion|escape:'html':'UTF-8'}
-                </div>
-            {/if}
+            <hr class="mt-4 mb-4">
 
+            {if isset($analysis_opinion) && $analysis_opinion}
+            <div class="alert alert-info" role="alert">
+                <strong>{l s='Analysis Opinion:' mod='salesbooster'}</strong> {$analysis_opinion|escape:'html':'UTF-8'}
+            </div>
+            {/if}
         </div>
     </div>
 
@@ -98,7 +98,7 @@
                                                min="0"
                                                max="100"
                                                step="0.01"
-                                               placeholder="{l s='e.g., 15.5' mod='salesbooster'}">
+                                               placeholder="{l s='e.g., 5' mod='salesbooster'}">
                                     </td>
                                     <td>{$product.product_id}</td>
                                     <td>{$product.product_name|escape:'html':'UTF-8'}</td>
@@ -115,8 +115,9 @@
                         </tbody>
                     </table>
                 </div>
-                <button type="submit" name="submitAddSuggestions" class="btn btn-success mt-3">
-                    <i class="material-icons">add_circle_outline</i> {l s='Add Selected Suggestions to Active Promotions' mod='salesbooster'}
+                <button type="submit" name="submitAddSuggestions" class="btn btn-success mt-3 d-inline-flex align-items-center">
+                    <i class="material-icons mr-1" style="vertical-align: middle;">add_circle_outline</i>
+                    <span>{l s='Add Selected Suggestions to Active Promotions' mod='salesbooster'}</span>
                 </button>
             </form>
         </div>
@@ -126,7 +127,6 @@
         <div class="panel-body">
             <div class="panel-heading">
                 <h3 class="mb-3">{l s='Currently Active Promotions' mod='salesbooster'}</h3>
-                <p>{l s='These products have an active discount applied via this module.' mod='salesbooster'}</p>
             </div>
             <div class="table-responsive">
                 <table class="table table-bordered table-striped">
