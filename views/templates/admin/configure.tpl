@@ -94,14 +94,14 @@
                                                name="suggestion_discounts[{$product.product_id}]"
                                                min="0"
                                                max="100"
-                                               step="0.01"
+                                               step="1"
                                                placeholder="{l s='e.g., 5' mod='salesbooster'}">
                                     </td>
                                     <td>{$product.product_id}</td>
                                     <td>{$product.product_name|escape:'html':'UTF-8'}</td>
                                     <td>{$product.trend_status|escape:'html':'UTF-8'}</td>
                                     <td>{if isset($product.percentage_change)}{$product.percentage_change|string_format:"%.2f"}%{/if}</td>
-                                    <td>{if isset($product.key_dates) && is_array($product.key_dates)}{implode(', ', $product.key_dates)|escape:'html':'UTF-8'}{/if}</td>
+                                    <td>{if isset($product.key_dates)} {$product.key_dates|escape:'html':'UTF-8'} {/if}</td>
                                 </tr>
                             {/foreach}
                         {else}
