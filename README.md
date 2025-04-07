@@ -17,8 +17,22 @@
 
 ## Admin Panel Screenshots
 
-### Sales Analysis & Configuration
+### Sales Analysis & Configuration Page
 ![Admin Panel](https://github.com/user-attachments/assets/d5e15b79-3f23-4487-aec5-e52175c094cd)
+
+---
+
+### Synchronize & Analyze Sales
+Synchronize data with your store and analyze sales trends using OpenAI.
+
+![Synchronize & Analyze](https://github.com/user-attachments/assets/719b85fa-95e0-4882-91b5-ce64368c369d)
+
+---
+
+### Manage Products for Carousel
+Select which products to display in the promotional carousel shown in the cart. Can also add discounts.
+
+![Manage Carousel Products](https://github.com/user-attachments/assets/2b3e9039-1948-427f-8d11-c537e76dc99b)
 
 ---
 
